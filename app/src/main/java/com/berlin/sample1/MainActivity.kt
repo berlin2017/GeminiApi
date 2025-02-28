@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,12 +33,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +52,7 @@ import com.berlin.sample1.room.ChatDatabase
 import com.berlin.sample1.ui.theme.Sample1Theme
 import com.berlin.sample1.viewmodel.GeminiViewModel
 import com.berlin.sample1.viewmodel.GeminiViewModelFactory
+import kotlinx.coroutines.launch
 
 const val API_KEY = "AIzaSyDTxGDhayK_QBJ4VoimiTW5pzTOIlCXiSU"
 
@@ -69,6 +76,8 @@ class MainActivity : ComponentActivity() {
                     val chatMessages by geminiViewModel.chatMessages.collectAsStateWithLifecycle()
                     // 获取软键盘高度
                     val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+                    val listState = rememberLazyListState()
+                    val coroutineScope = rememberCoroutineScope()
                     Scaffold(
                         topBar = {
                             CenterAlignedTopAppBar(
@@ -95,13 +104,22 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth(),
-                                reverseLayout = true
+                                reverseLayout = true,
+                                state = listState
                             ) {
                                 items(chatMessages.reversed()) { chatMessage ->
                                     ChatBubble(chatMessage = chatMessage)
                                 }
                             }
-
+                            // 滚动到列表底部
+                            LaunchedEffect(chatMessages) {
+                                if (chatMessages.isNotEmpty()) {
+                                    coroutineScope.launch {
+                                        listState.animateScrollToItem(0)
+                                    }
+                                }
+                            }
+                            val focusManager = LocalFocusManager.current
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -113,12 +131,23 @@ class MainActivity : ComponentActivity() {
                                     value = message,
                                     onValueChange = { message = it },
                                     label = { Text("Enter your message") },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                                    keyboardActions = KeyboardActions(
+                                        onSend = {
+                                            if (message.isNotEmpty()) {
+                                                geminiViewModel.sendMessage(API_KEY, message)
+                                                message = ""
+                                                focusManager.clearFocus()
+                                            }
+                                        }
+                                    )
                                 )
                                 Button(onClick = {
                                     if (message.isNotEmpty()) {
                                         geminiViewModel.sendMessage(API_KEY, message)
                                         message = ""
+                                        focusManager.clearFocus()
                                     }
                                 }) {
                                     Text("Send")
