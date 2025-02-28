@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +41,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.berlin.sample1.model.ChatMessage
 import com.berlin.sample1.network.RetrofitClient
 import com.berlin.sample1.repository.GeminiRepository
+import com.berlin.sample1.room.ChatDatabase
 import com.berlin.sample1.ui.theme.Sample1Theme
 import com.berlin.sample1.viewmodel.GeminiViewModel
 import com.berlin.sample1.viewmodel.GeminiViewModelFactory
@@ -53,7 +52,10 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val geminiRepository = GeminiRepository(RetrofitClient.geminiApiService)
+        val geminiRepository = GeminiRepository(
+            RetrofitClient.geminiApiService,
+            ChatDatabase.getDatabase(this).chatMessageDao()
+        )
         val factory = GeminiViewModelFactory(geminiRepository)
         val geminiViewModel = ViewModelProvider(this, factory)[GeminiViewModel::class.java]
         setContent {

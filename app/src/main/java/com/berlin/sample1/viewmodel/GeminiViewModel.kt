@@ -4,32 +4,58 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.berlin.sample1.model.ChatMessage
-import com.berlin.sample1.model.Content
-import com.berlin.sample1.model.Part
-import com.berlin.sample1.model.Prompt
+import com.berlin.sample1.model.DataState
 import com.berlin.sample1.repository.GeminiRepository
+import com.berlin.sample1.room.ChatMessageEntity
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class GeminiViewModel(private val geminiRepository: GeminiRepository) : ViewModel() {
+class GeminiViewModel(
+    private val geminiRepository: GeminiRepository
+) : ViewModel() {
     val chatMessages = MutableLiveData<List<ChatMessage>>(emptyList())
+
+    init {
+        viewModelScope.launch {
+//            geminiRepository.clearAllMessages()
+            geminiRepository.getAllMessages().collectLatest { dataState ->
+                when (dataState) {
+                    is DataState.Success -> {
+                        chatMessages.value = dataState.data
+                    }
+
+                    is DataState.Error -> {
+                        // Handle the error state, maybe show an error message to the user
+                    }
+
+                    is DataState.Loading -> {
+                        // Optionally handle the loading state, maybe show a loading indicator
+                    }
+                }
+            }
+        }
+    }
+
     fun sendMessage(apiKey: String, message: String) {
         val userMessage = ChatMessage(message, true)
         addMessage(userMessage) // Add user message first
-
         viewModelScope.launch {
-            val prompt = Prompt(
-                listOf(
-                    Content(
-                        listOf(Part(message))
-                    )
-                )
-            )
-            val resp = geminiRepository.sendMessage(apiKey, prompt)
-            if (resp.isSuccessful) {
-                val responseMessage =
-                    resp.body()?.candidates?.get(0)?.content?.parts?.get(0)?.text ?: ""
-                val geminiMessage = ChatMessage(responseMessage, false)
-                addMessage(geminiMessage) // Add AI message after receiving response
+            geminiRepository.insertMessage(ChatMessageEntity(text = message, isUserMessage = true))
+            geminiRepository.getMessageFromNetwork(apiKey, message).collectLatest { dataState ->
+                when (dataState) {
+                    is DataState.Success -> {
+                        val geminiMessage = dataState.data
+                        addMessage(geminiMessage) // Add AI message after receiving response
+                    }
+
+                    is DataState.Error -> {
+                        // Handle error
+                    }
+
+                    is DataState.Loading -> {
+                        //Handle loading.
+                    }
+                }
             }
         }
     }
