@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.berlin.sample1.model.ChatMessage
 import com.berlin.sample1.network.RetrofitClient
 import com.berlin.sample1.repository.GeminiRepository
@@ -65,14 +66,9 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var message by remember { mutableStateOf("") }
-                    var chatMessages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+                    val chatMessages by geminiViewModel.chatMessages.collectAsStateWithLifecycle()
                     // 获取软键盘高度
                     val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-                    LaunchedEffect(geminiViewModel) {
-                        geminiViewModel.chatMessages.observe(this@MainActivity) { messages ->
-                            chatMessages = messages
-                        }
-                    }
                     Scaffold(
                         topBar = {
                             CenterAlignedTopAppBar(

@@ -1,19 +1,23 @@
 package com.berlin.sample1.viewmodel
 
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.berlin.sample1.model.ChatMessage
 import com.berlin.sample1.model.DataState
 import com.berlin.sample1.repository.GeminiRepository
 import com.berlin.sample1.room.ChatMessageEntity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class GeminiViewModel(
     private val geminiRepository: GeminiRepository
 ) : ViewModel() {
-    val chatMessages = MutableLiveData<List<ChatMessage>>(emptyList())
+    // 使用 MutableStateFlow 保存内部状态，并以 StateFlow 的形式暴露出去
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -21,7 +25,7 @@ class GeminiViewModel(
             geminiRepository.getAllMessages().collectLatest { dataState ->
                 when (dataState) {
                     is DataState.Success -> {
-                        chatMessages.value = dataState.data
+                        _chatMessages.value = dataState.data
                     }
 
                     is DataState.Error -> {
@@ -61,8 +65,8 @@ class GeminiViewModel(
     }
 
     private fun addMessage(message: ChatMessage) {
-        val currentList = chatMessages.value.orEmpty().toMutableList()
+        val currentList = _chatMessages.value.orEmpty().toMutableList()
         currentList.add(message)
-        chatMessages.value = currentList
+        _chatMessages.value = currentList
     }
 }
